@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -35,7 +36,21 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go timedWrite(conn)
+	go reader(conn)
 
+}
+
+func reader(conn *websocket.Conn) {
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			slog.Error("Error reading message", "error", err)
+			break
+		}
+
+		message = bytes.TrimSpace(bytes.ReplaceAll(message, []byte("\n"), []byte(" "), ))
+		fmt.Println(string(message))
+	}
 }
 
 func timedWrite(conn *websocket.Conn) {
