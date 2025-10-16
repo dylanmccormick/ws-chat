@@ -1,77 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"log/slog"
-	"net/http"
-	"time"
-
-	"github.com/gorilla/websocket"
+	"github.com/dylanmccormick/ws-chat/cmd/server"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
 
 func main() {
 	fmt.Println("Hello and welcome to websocket chat")
 
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(w, r)
-	})
-
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		slog.Error("ListenAndServe: ", "error", err)
-	}
+	server.StartServer()
 }
 
-func serveWs(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		slog.Error("An error occurred upgrading the http connection", "error", err)
-		panic(err)
-	}
-
-	go timedWrite(conn)
-	go reader(conn)
-
-}
-
-func reader(conn *websocket.Conn) {
-	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			slog.Error("Error reading message", "error", err)
-			break
-		}
-
-		message = bytes.TrimSpace(bytes.ReplaceAll(message, []byte("\n"), []byte(" "), ))
-		fmt.Println(string(message))
-	}
-}
-
-func timedWrite(conn *websocket.Conn) {
-	ticker := time.NewTicker(1 * time.Second)
-	defer func() {
-		ticker.Stop()
-		conn.Close()
-	}()
-
-	for {
-		select {
-		case <-ticker.C:
-			ws, err := conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				slog.Error("An error occurred with NextWriter: ", "error", err)
-			}
-
-			ws.Write([]byte("Test"))
-			ws.Close()
-		default:
-			continue
-		}
-	}
-}
