@@ -29,6 +29,20 @@ type Room struct {
 	// Should there be a message chan??? ... probably
 }
 
+type MessageType int
+
+const (
+	userMessage MessageType = iota
+	announcement
+	command
+)
+
+type Message struct {
+	Typ  MessageType
+	User string
+	Body string
+}
+
 type Server struct {
 	Rooms []Room
 }
@@ -88,7 +102,6 @@ func (s *Server) createUser(conn *websocket.Conn) (User, error) {
 	}
 	fmt.Fprintf(ws, "Welcome to the lobby, %s", username)
 	ws.Close()
-
 
 	return User{username: string(username), conn: conn, currentRoom: s.Rooms[0], send: make(chan string)}, nil
 }
@@ -158,8 +171,4 @@ func (r *Room) updateRoom() {
 			continue
 		}
 	}
-}
-
-func (s *Server) updateRooms() {
-	// This is going to be a problem. We don't want to spin off a goroutine for each room each loop. Infinite goroutines == bad
 }
