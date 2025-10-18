@@ -8,6 +8,7 @@ type Message struct {
 
 type chatMessage struct {
 	Message string `json:"message"`
+	Target  string `json:"target"` // The room for the chat message
 }
 
 type errorMessage struct {

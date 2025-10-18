@@ -22,11 +22,6 @@ type User struct {
 	send        chan string
 }
 
-type Room struct {
-	Name        string
-	Users       []User
-	MessageChan chan string
-}
 
 type Server struct {
 	Rooms []Room
@@ -107,7 +102,7 @@ func reader(u User) {
 		// Here we should send this to some sort of message broker. It handles incoming and outgoing chats for each client
 		// That way it can reference the room which it is in and handle messages from that room. Or announcements from the server
 		slog.Info("Got a message", "message", message)
-		u.currentRoom.MessageChan <- fmt.Sprintf("%s: %s", u.username, string(message))
+		// u.currentRoom.MessageChan <- fmt.Sprintf("%s: %s", u.username, string(message))
 		slog.Info("Message sent to channel")
 	}
 }
@@ -116,7 +111,6 @@ func createRoom() Room {
 	return Room{
 		Name:        "lobby",
 		Users:       []User{},
-		MessageChan: make(chan string),
 	}
 }
 
@@ -144,16 +138,17 @@ func timedWrite(u User) {
 	}
 }
 
-func (r *Room) updateRoom() {
-	for {
-		select {
-		case msg := <-r.MessageChan:
-			slog.Info("Got a message in update room channel", "room", r.Name, "message", msg)
-			for _, u := range r.Users {
-				u.send <- msg
-			}
-		default:
-			continue
-		}
-	}
-}
+// TODO: This will be handled by the HUB now. So room update is not the move
+// func (r *Room) updateRoom() {
+// 	for {
+// 		select {
+// 		case msg := <-r.MessageChan:
+// 			slog.Info("Got a message in update room channel", "room", r.Name, "message", msg)
+// 			for _, u := range r.Users {
+// 				u.send <- msg
+// 			}
+// 		default:
+// 			continue
+// 		}
+// 	}
+// }
