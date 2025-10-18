@@ -26,21 +26,6 @@ type Room struct {
 	Name        string
 	Users       []User
 	MessageChan chan string
-	// Should there be a message chan??? ... probably
-}
-
-type MessageType int
-
-const (
-	userMessage MessageType = iota
-	announcement
-	command
-)
-
-type Message struct {
-	Typ  MessageType
-	User string
-	Body string
 }
 
 type Server struct {
