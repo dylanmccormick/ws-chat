@@ -17,6 +17,13 @@ type RoomManager struct {
 	mux   sync.Mutex
 }
 
+func NewRoomManager() *RoomManager {
+	return &RoomManager{
+		rooms: make(map[string]*Room),
+		mux:   sync.Mutex{},
+	}
+}
+
 func (r *RoomManager) ListRooms() []string {
 	r.mux.Lock()
 	defer r.mux.Unlock()

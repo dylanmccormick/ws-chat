@@ -1,48 +1,128 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"log/slog"
+
+	"github.com/gorilla/websocket"
 )
 
 // The hub is the central event handler
 type Hub struct {
-	clients map[*User]bool
+	clients    map[*User]bool
+	register   chan *User
+	unregister chan *User
 
-	messages chan []byte // all inbound messages for the hub. Will have user messages, commands, and announcements
+	messages    chan Message // all inbound messages for the hub. Will have user messages, commands, and announcements
 	roomManager *RoomManager
+	translator  Translator
+}
+
+func NewHub() *Hub {
+	return &Hub{
+		clients:     make(map[*User]bool),
+		messages:    make(chan Message),
+		register:    make(chan *User),
+		unregister:  make(chan *User),
+		roomManager: NewRoomManager(),
+		translator:  Translator{},
+	}
 }
 
 // This is the event loop. All messages will come through the hub
 func (h *Hub) run() {
-	t := Translator{}
 	for {
 		select {
-		case data := <-h.messages:
-			message, err := t.BytesToMessage(context.TODO(), data)
-			if err != nil {
-				slog.Error("Handling json unmarshal error")
-				// ignore message
-				continue
-			}
+		case client := <-h.register:
+			go h.registerClient(client)
+		case message := <-h.messages:
 			h.handleMessage(context.TODO(), message)
 		default:
 			continue
 		}
-
-		// Process user messages
-
-		// Process commands
-
-		// Process announcements
 	}
 }
 
 func (h *Hub) handleMessage(ctx context.Context, msg Message) {
-	switch msg.Typ {
-	case "chat":
-		room, ok := 
-
-
+	switch body := msg.Body.(type) {
+	case chatMessage:
+		h.handleChat(ctx, msg, body)
+	case errorMessage:
+		h.handleError(ctx, msg, body)
+	case commandMessage:
+		h.handleCommand(ctx, msg, body)
 	}
+}
+
+func (h *Hub) handleChat(ctx context.Context, msg Message, body chatMessage) {
+	// TODO: Assert body is of chatMessage type
+	room, err := h.roomManager.GetRoom(body.Target)
+	if err != nil {
+		slog.Error("Unable to resolve target for chat message", "message", msg, "body", body)
+		return
+	}
+	data, err := h.translator.MessageToBytes(ctx, msg)
+	if err != nil {
+		slog.Error("Unable to convert message to bytes", "message", msg)
+		return
+	}
+	h.broadcast(ctx, data, room)
+}
+
+func (h *Hub) handleError(ctx context.Context, msg Message, body errorMessage) {}
+
+func (h *Hub) handleCommand(ctx context.Context, msg Message, body commandMessage) {
+	switch body.Action {
+	case "RegisterUser":
+		h.clients[msg.User] = true
+	}
+}
+
+func (h *Hub) broadcast(ctx context.Context, data []byte, room *Room) {
+	// TODO: Follow gorilla pattern of dropping bad users
+	for _, u := range room.Users {
+		u.send <- data
+	}
+}
+
+func (h *Hub) registerClient(u *User) {
+	h.promptForUsername(u)
+
+	msg := Message{
+		Typ: "command",
+	}
+	h.messages <- msg
+}
+
+func (h *Hub) promptForUsername(u *User) {
+	var validUsername bool
+	validUsername = false
+	var username string
+	conn := u.conn
+	for !validUsername {
+		ws, err := conn.NextWriter(websocket.TextMessage)
+		if err != nil {
+			slog.Error("An error occurred with NextWriter: ", "error", err)
+		}
+
+		ws.Write([]byte("Please send your username"))
+		ws.Close()
+
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			slog.Error("That username is bogus", "error", err)
+		}
+
+		username = string(bytes.TrimSpace(bytes.ReplaceAll(message, []byte("\n"), []byte(" "))))
+		validUsername = true
+	}
+	ws, err := conn.NextWriter(websocket.TextMessage)
+	if err != nil {
+		slog.Error("An error occurred with NextWriter: ", "error", err)
+	}
+	fmt.Fprintf(ws, "Welcome to the lobby, %s", username)
+	ws.Close()
+	u.username = username
 }

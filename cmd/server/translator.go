@@ -36,7 +36,7 @@ func CreateErrorMessage(ctx context.Context, msg string) Message {
 	}
 	return Message{
 		Typ:  "error",
-		User: "user", // TODO: Get user from context
+		User: &User{}, // TODO: Get user from context
 		Body: errMsg,
 	}
 }
@@ -79,7 +79,7 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 
 func (m *Message) MarshalJSON() ([]byte, error) {
 	var temp struct {
-		Type string `json:"type"`
+		Type string          `json:"type"`
 		Body json.RawMessage `json:"body"`
 	}
 	temp.Type = m.Typ

@@ -1,9 +1,10 @@
 package server
 
 type Message struct {
-	Typ  string `json:"type"`
-	User string `json:"user"`
-	Body any    `json:"-"`
+	Typ      string         `json:"type"`
+	User     *User          `json:"-"` // We will pull from the context. That way user can't imitate another user
+	Body     any            `json:"-"`
+	Metadata map[string]any `json:"-"` // This field is just for us. The client need not know about it
 }
 
 type chatMessage struct {
@@ -17,5 +18,11 @@ type errorMessage struct {
 }
 
 type commandMessage struct {
-	Message string `json:"message"`
+	Target string `json:"target"`
+	Type   string `json:"command"`
+	Action string `json:"action"`
+}
+
+func (m *Message) EnrichWithUser(user *User) {
+	m.User = user
 }
