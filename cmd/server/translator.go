@@ -29,7 +29,7 @@ func (t *Translator) MessageToBytes(ctx context.Context, msg Message) ([]byte, e
 }
 
 func CreateErrorMessage(ctx context.Context, msg string) Message {
-	errMsg, err := json.Marshal(errorMessage{Message: msg})
+	errMsg, err := json.Marshal(ErrorMessage{Message: msg})
 	if err != nil {
 		// if this doesn't work that means I have crafted a bad message... which means the program is bad
 		panic(err)
@@ -61,13 +61,13 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 		}
 		m.Body = chatBody
 	case "command":
-		var commandBody commandMessage
+		var commandBody CommandMessage
 		if err := json.Unmarshal(temp.Body, &commandBody); err != nil {
 			return err
 		}
 		m.Body = commandBody
 	case "error":
-		var errorBody errorMessage
+		var errorBody ErrorMessage
 		if err := json.Unmarshal(temp.Body, &errorBody); err != nil {
 			return err
 		}
@@ -80,9 +80,11 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 func (m *Message) MarshalJSON() ([]byte, error) {
 	var temp struct {
 		Type string          `json:"type"`
+		User string          `json:"user"`
 		Body json.RawMessage `json:"body"`
 	}
 	temp.Type = m.Typ
+	temp.User = m.User.username
 
 	body, err := json.Marshal(m.Body)
 	if err != nil {

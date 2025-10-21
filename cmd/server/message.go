@@ -12,12 +12,12 @@ type ChatMessage struct {
 	Target  string `json:"target"` // The room for the chat message
 }
 
-type errorMessage struct {
+type ErrorMessage struct {
 	Message string `json:"message"`
 	Type    string `json:"type"`
 }
 
-type commandMessage struct {
+type CommandMessage struct {
 	Target string `json:"target"`
 	Type   string `json:"command"`
 	Action string `json:"action"`

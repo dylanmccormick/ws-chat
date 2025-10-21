@@ -8,13 +8,13 @@ import (
 
 func TestUnmarshalMessage(t *testing.T) {
 	tests := []struct {
-		input        string
+		input              string
 		expectedTypeString string
-		expectedType any
+		expectedType       any
 	}{
 		{`{"type": "chat", "body": {"test": "ok"}}`, "chat", ChatMessage{}},
-		{`{"type": "error", "body": {"test": "ok"}}`, "error", errorMessage{}},
-		{`{"type": "command", "body": {"test": "ok"}}`, "command", commandMessage{}},
+		{`{"type": "error", "body": {"test": "ok"}}`, "error", ErrorMessage{}},
+		{`{"type": "command", "body": {"test": "ok"}}`, "command", CommandMessage{}},
 	}
 
 	for _, tt := range tests {
@@ -34,11 +34,11 @@ func TestUnmarshalMessage(t *testing.T) {
 
 func TestMarshalMessage(t *testing.T) {
 	translator := Translator{}
-	tests := []struct{
-		input Message
+	tests := []struct {
+		input        Message
 		expectedData string
 	}{
-		{Message{Typ: "chat", Body: ChatMessage{Message: "test"}},`{"type":"chat","body":{"message":"test"}}`},
+		{Message{Typ: "chat", Body: ChatMessage{Message: "test", Target: "lobby"}}, `{"type":"chat","body":{"message":"test","target":"lobby"}}`},
 	}
 
 	for _, tt := range tests {

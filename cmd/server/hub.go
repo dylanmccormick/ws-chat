@@ -55,9 +55,9 @@ func (h *Hub) handleMessage(ctx context.Context, msg Message) {
 	switch body := msg.Body.(type) {
 	case ChatMessage:
 		h.handleChat(ctx, msg, body)
-	case errorMessage:
+	case ErrorMessage:
 		h.handleError(ctx, msg, body)
-	case commandMessage:
+	case CommandMessage:
 		slog.Info("Handling command")
 		h.handleCommand(ctx, msg, body)
 	}
@@ -78,9 +78,9 @@ func (h *Hub) handleChat(ctx context.Context, msg Message, body ChatMessage) {
 	h.broadcast(ctx, data, room)
 }
 
-func (h *Hub) handleError(ctx context.Context, msg Message, body errorMessage) {}
+func (h *Hub) handleError(ctx context.Context, msg Message, body ErrorMessage) {}
 
-func (h *Hub) handleCommand(ctx context.Context, msg Message, body commandMessage) {
+func (h *Hub) handleCommand(ctx context.Context, msg Message, body CommandMessage) {
 	switch body.Action {
 	case "RegisterUser":
 		slog.Info("Registering User", "user", msg.User.username)
@@ -91,7 +91,21 @@ func (h *Hub) handleCommand(ctx context.Context, msg Message, body commandMessag
 			slog.Error("LOBBY DOES NOT EXIST")
 			os.Exit(1)
 		}
-
+		rm.Users = append(rm.Users, msg.User)
+	case "CreateRoom":
+		slog.Info("User requested to create room", "user", msg.User.username, "room", body.Target)
+		h.roomManager.AddRoom(body.Target)
+		rm, err := h.roomManager.GetRoom(body.Target)
+		if err != nil {
+			slog.Error("Was not able to create room", "room", body.Target)
+		}
+		rm.Users = append(rm.Users, msg.User)
+	case "JoinRoom":
+		slog.Info("User requested to join room", "user", msg.User.username, "room", body.Target)
+		rm, err := h.roomManager.GetRoom(body.Target)
+		if err != nil {
+			slog.Error("Was not able to join room", "room", body.Target)
+		}
 		rm.Users = append(rm.Users, msg.User)
 	}
 }
@@ -109,7 +123,7 @@ func (h *Hub) registerClient(u *User) {
 	msg := Message{
 		Typ:  "command",
 		User: u,
-		Body: commandMessage{
+		Body: CommandMessage{
 			Action: "RegisterUser",
 		},
 	}
