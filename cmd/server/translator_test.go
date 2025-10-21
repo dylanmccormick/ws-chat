@@ -12,7 +12,7 @@ func TestUnmarshalMessage(t *testing.T) {
 		expectedTypeString string
 		expectedType any
 	}{
-		{`{"type": "chat", "body": {"test": "ok"}}`, "chat", chatMessage{}},
+		{`{"type": "chat", "body": {"test": "ok"}}`, "chat", ChatMessage{}},
 		{`{"type": "error", "body": {"test": "ok"}}`, "error", errorMessage{}},
 		{`{"type": "command", "body": {"test": "ok"}}`, "command", commandMessage{}},
 	}
@@ -38,7 +38,7 @@ func TestMarshalMessage(t *testing.T) {
 		input Message
 		expectedData string
 	}{
-		{Message{Typ: "chat", Body: chatMessage{Message: "test"}},`{"type":"chat","body":{"message":"test"}}`},
+		{Message{Typ: "chat", Body: ChatMessage{Message: "test"}},`{"type":"chat","body":{"message":"test"}}`},
 	}
 
 	for _, tt := range tests {

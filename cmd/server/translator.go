@@ -55,7 +55,7 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 
 	switch temp.Type {
 	case "chat":
-		var chatBody chatMessage
+		var chatBody ChatMessage
 		if err := json.Unmarshal(temp.Body, &chatBody); err != nil {
 			return err
 		}

@@ -92,13 +92,6 @@ func reader(u *User, highway chan Message) {
 	}
 }
 
-func createRoom() Room {
-	return Room{
-		Name:  "lobby",
-		Users: []User{},
-	}
-}
-
 func timedWrite(u *User) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer func() {

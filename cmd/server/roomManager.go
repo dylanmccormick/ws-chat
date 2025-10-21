@@ -9,7 +9,7 @@ import (
 
 type Room struct {
 	Name  string
-	Users []User
+	Users []*User
 }
 
 type RoomManager struct {
@@ -37,7 +37,7 @@ func (r *RoomManager) AddRoom(name string) error {
 	if _, ok := r.rooms[name]; ok {
 		return fmt.Errorf("the room %s already exists", name)
 	}
-	r.rooms[name] = &Room{Name: name, Users: []User{}}
+	r.rooms[name] = &Room{Name: name, Users: []*User{}}
 	return nil
 }
 

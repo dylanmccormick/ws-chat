@@ -7,7 +7,7 @@ type Message struct {
 	Metadata map[string]any `json:"-"` // This field is just for us. The client need not know about it
 }
 
-type chatMessage struct {
+type ChatMessage struct {
 	Message string `json:"message"`
 	Target  string `json:"target"` // The room for the chat message
 }
