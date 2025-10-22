@@ -12,6 +12,11 @@ type ChatMessage struct {
 	Target  string `json:"target"` // The room for the chat message
 }
 
+type AnnouncementMessage struct {
+	Message string `json:"message"`
+	Target  string `json:"target"` // The room for the announcement message
+}
+
 type ErrorMessage struct {
 	Message string `json:"message"`
 	Type    string `json:"type"`

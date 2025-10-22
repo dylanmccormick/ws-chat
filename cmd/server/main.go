@@ -65,8 +65,8 @@ func (s *Server) ServeWs(w http.ResponseWriter, r *http.Request) {
 func (s *Server) createUser(conn *websocket.Conn) (*User, error) {
 	// We're instead going to create an anonymous user and send them through the registration channel (before they can get messages)
 	u := &User{
-		conn:        conn,
-		send:        make(chan []byte),
+		conn: conn,
+		send: make(chan []byte),
 	}
 	return u, nil
 }
@@ -103,13 +103,7 @@ func timedWrite(u *User) {
 		select {
 		case data := <-u.send:
 			slog.Info("Got a message from u.send channel", "user", u.username)
-			ws, err := u.conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				slog.Error("An error occurred with NextWriter: ", "error", err)
-			}
-
-			ws.Write(data)
-			ws.Close()
+			WriteToConn(u.conn, data)
 		default:
 			continue
 		}

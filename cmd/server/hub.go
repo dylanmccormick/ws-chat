@@ -55,6 +55,8 @@ func (h *Hub) handleMessage(ctx context.Context, msg Message) {
 	switch body := msg.Body.(type) {
 	case ChatMessage:
 		h.handleChat(ctx, msg, body)
+	case AnnouncementMessage:
+		h.handleAnnouncement(ctx, msg, body)
 	case ErrorMessage:
 		h.handleError(ctx, msg, body)
 	case CommandMessage:
@@ -68,6 +70,20 @@ func (h *Hub) handleChat(ctx context.Context, msg Message, body ChatMessage) {
 	room, err := h.roomManager.GetRoom(body.Target)
 	if err != nil {
 		slog.Error("Unable to resolve target for chat message", "message", msg, "body", body)
+		return
+	}
+	data, err := h.translator.MessageToBytes(ctx, msg)
+	if err != nil {
+		slog.Error("Unable to convert message to bytes", "message", msg)
+		return
+	}
+	h.broadcast(ctx, data, room)
+}
+
+func (h *Hub) handleAnnouncement(ctx context.Context, msg Message, body AnnouncementMessage) {
+	room, err := h.roomManager.GetRoom(body.Target)
+	if err != nil {
+		slog.Error("Unable to resolve target for announcement message", "message", msg, "body", body)
 		return
 	}
 	data, err := h.translator.MessageToBytes(ctx, msg)
@@ -107,6 +123,17 @@ func (h *Hub) handleCommand(ctx context.Context, msg Message, body CommandMessag
 			slog.Error("Was not able to join room", "room", body.Target)
 		}
 		rm.Users = append(rm.Users, msg.User)
+		msg := Message{
+			Typ:  "announcement",
+			User: msg.User,
+			Body: AnnouncementMessage{
+				Message: fmt.Sprintf("User %s has joined the room", msg.User.username),
+				Target:  body.Target,
+			},
+		}
+		h.messages <- msg
+	default:
+		slog.Warn("Received command with unexpected action", "action", body.Action)
 	}
 }
 
@@ -137,13 +164,7 @@ func (h *Hub) promptForUsername(u *User) {
 	var username string
 	conn := u.conn
 	for !validUsername {
-		ws, err := conn.NextWriter(websocket.TextMessage)
-		if err != nil {
-			slog.Error("An error occurred with NextWriter: ", "error", err)
-		}
-
-		ws.Write([]byte("Please send your username"))
-		ws.Close()
+		WriteToConn(conn, []byte("Please send your username"))
 
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -154,11 +175,15 @@ func (h *Hub) promptForUsername(u *User) {
 		username = string(bytes.TrimSpace(bytes.ReplaceAll(message, []byte("\n"), []byte(" "))))
 		validUsername = true
 	}
+	WriteToConn(conn, fmt.Appendf(nil, "Welcome to the lobby, %s", username))
+	u.username = username
+}
+
+func WriteToConn(conn *websocket.Conn, message []byte) {
 	ws, err := conn.NextWriter(websocket.TextMessage)
 	if err != nil {
 		slog.Error("An error occurred with NextWriter: ", "error", err)
 	}
-	fmt.Fprintf(ws, "Welcome to the lobby, %s", username)
+	ws.Write(message)
 	ws.Close()
-	u.username = username
 }
