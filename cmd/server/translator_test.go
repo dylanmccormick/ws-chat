@@ -38,7 +38,7 @@ func TestMarshalMessage(t *testing.T) {
 		input        Message
 		expectedData string
 	}{
-		{Message{Typ: "chat", Body: ChatMessage{Message: "test", Target: "lobby"}}, `{"type":"chat","body":{"message":"test","target":"lobby"}}`},
+		{Message{Typ: "chat", Body: ChatMessage{Message: "test", Target: "lobby"}}, `{"type":"chat","body":{"message":"test","target": "lobby"}}`},
 	}
 
 	for _, tt := range tests {
