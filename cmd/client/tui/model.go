@@ -13,6 +13,8 @@ type RootModel struct {
 	height int
 
 	ChatComponent *ChatComponent
+	RoomComponent *RoomComponent
+	UserComponent *UserComponent
 }
 
 type Component interface {
@@ -34,6 +36,8 @@ func Start() {
 func NewRootModel() RootModel {
 	return RootModel{
 		ChatComponent: NewChatComponent(),
+		RoomComponent: NewRoomComponent(),
+		UserComponent: NewUserComponent(),
 	}
 }
 
@@ -59,12 +63,36 @@ func (rm RootModel) View() string {
 	if rm.height == 0 {
 		return "Loading ..."
 	}
-	chat := rm.RenderChat(rm.width, rm.height)
-	return lipgloss.JoinHorizontal(lipgloss.Top, chat)
+	rooms := rm.RenderRooms(rm.width/6, rm.height)
+	chat := rm.RenderChat(int(float64(rm.width)/float64(1.5)), rm.height)
+	users := rm.RenderUsers(rm.width/6, rm.height)
+	return lipgloss.JoinHorizontal(lipgloss.Top, rooms, chat, users)
 }
 
 func (rm RootModel) RenderChat(width, height int) string {
 	content := rm.ChatComponent.View()
+	headerStyle := lipgloss.NewStyle().
+		Width(width - 2).
+		Height(height - 2).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62"))
+
+	return headerStyle.Render(content)
+}
+
+func (rm RootModel) RenderRooms(width, height int) string {
+	content := rm.RoomComponent.View()
+	headerStyle := lipgloss.NewStyle().
+		Width(width - 2).
+		Height(height - 2).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62"))
+
+	return headerStyle.Render(content)
+}
+
+func (rm RootModel) RenderUsers(width, height int) string {
+	content := rm.UserComponent.View()
 	headerStyle := lipgloss.NewStyle().
 		Width(width - 2).
 		Height(height - 2).
