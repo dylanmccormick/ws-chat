@@ -4,6 +4,8 @@ import (
 	"context"
 	"reflect"
 	"testing"
+
+	prot "github.com/dylanmccormick/ws-chat/internal/protocol"
 )
 
 func TestUnmarshalMessage(t *testing.T) {
@@ -12,13 +14,13 @@ func TestUnmarshalMessage(t *testing.T) {
 		expectedTypeString string
 		expectedType       any
 	}{
-		{`{"type": "chat", "body": {"test": "ok"}}`, "chat", ChatMessage{}},
-		{`{"type": "error", "body": {"test": "ok"}}`, "error", ErrorMessage{}},
-		{`{"type": "command", "body": {"test": "ok"}}`, "command", CommandMessage{}},
+		{`{"type": "chat", "body": {"test": "ok"}}`, "chat", prot.ChatMessage{}},
+		{`{"type": "error", "body": {"test": "ok"}}`, "error", prot.ErrorMessage{}},
+		{`{"type": "command", "body": {"test": "ok"}}`, "command", prot.CommandMessage{}},
 	}
 
 	for _, tt := range tests {
-		var m Message
+		var m prot.Message
 		err := m.UnmarshalJSON([]byte(tt.input))
 		if err != nil {
 			t.Errorf("error occurred when unmarshalling json: %s", err)
@@ -35,10 +37,13 @@ func TestUnmarshalMessage(t *testing.T) {
 func TestMarshalMessage(t *testing.T) {
 	translator := Translator{}
 	tests := []struct {
-		input        Message
+		input        InternalMessage
 		expectedData string
 	}{
-		{Message{Typ: "chat", Body: ChatMessage{Message: "test", Target: "lobby"}}, `{"type":"chat","body":{"message":"test","target": "lobby"}}`},
+		{
+			InternalMessage{User: &User{}, Message: prot.Message{Typ: "chat", Body: prot.ChatMessage{Message: "test", Target: "lobby"}}},
+			`{"type":"chat","body":{"message":"test","target":"lobby"}}`,
+		},
 	}
 
 	for _, tt := range tests {

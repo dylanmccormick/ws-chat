@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/dylanmccormick/ws-chat/cmd/client"
+	"github.com/dylanmccormick/ws-chat/cmd/client/tui"
 	"github.com/dylanmccormick/ws-chat/cmd/server"
 	"github.com/spf13/cobra"
 )
@@ -22,6 +23,7 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(replCmd)
 	rootCmd.AddCommand(startServerCmd)
+	rootCmd.AddCommand(startTui)
 }
 
 var versionCmd = &cobra.Command{
@@ -49,5 +51,14 @@ var startServerCmd = &cobra.Command{
 	Long:  `Will update these later with some polish`,
 	Run: func(cmd *cobra.Command, args []string) {
 		server.StartServer()
+	},
+}
+
+var startTui = &cobra.Command{
+	Use:   "tui",
+	Short: "a command to start the client tui",
+	Long:  `Will update these later with some polish`,
+	Run: func(cmd *cobra.Command, args []string) {
+		tui.Start()
 	},
 }

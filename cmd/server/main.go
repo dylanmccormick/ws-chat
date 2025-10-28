@@ -66,12 +66,12 @@ func (s *Server) createUser(conn *websocket.Conn) (*User, error) {
 	// We're instead going to create an anonymous user and send them through the registration channel (before they can get messages)
 	u := &User{
 		conn: conn,
-		send: make(chan []byte),
+		send: make(chan []byte, 10),
 	}
 	return u, nil
 }
 
-func reader(u *User, highway chan Message) {
+func reader(u *User, highway chan InternalMessage) {
 	slog.Info("Starting reader")
 	t := Translator{}
 	for {

@@ -5,11 +5,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
 	"net/url"
 	"os"
 	"strings"
 
-	"github.com/dylanmccormick/ws-chat/cmd/server"
+	prot "github.com/dylanmccormick/ws-chat/internal/protocol"
 	"github.com/gorilla/websocket"
 )
 
@@ -62,6 +63,13 @@ func Execute() {
 			case "/switch":
 				currentRoom = tokens[1]
 				continue
+			case "/list":
+				msg := createListRoomMessage()
+				err := c.WriteMessage(websocket.TextMessage, msg)
+				if err != nil {
+					fmt.Printf("We got an error writing: %s", err)
+					panic(err)
+				}
 			}
 		}
 		if input == "/quit" {
@@ -98,14 +106,15 @@ func CreateConnection() *websocket.Conn {
 	if err != nil {
 		panic(err)
 	}
-	c.WriteMessage(websocket.TextMessage, []byte("TestUser"))
+	userNumber := fmt.Sprintf("%6d", rand.IntN(999999))
+	c.WriteMessage(websocket.TextMessage, []byte("TestUser"+userNumber))
 	return c
 }
 
 func createJoinRoomMessage(name string) []byte {
-	message := &server.Message{
+	message := &prot.Message{
 		Typ: "command",
-		Body: server.CommandMessage{
+		Body: prot.CommandMessage{
 			Action: "JoinRoom",
 			Target: name,
 		},
@@ -117,10 +126,24 @@ func createJoinRoomMessage(name string) []byte {
 	return msg
 }
 
-func createCreateRoomMessage(name string) []byte {
-	message := &server.Message{
+func createListRoomMessage() []byte {
+	message := &prot.Message{
 		Typ: "command",
-		Body: server.CommandMessage{
+		Body: prot.CommandMessage{
+			Action: "ListMyRooms",
+		},
+	}
+	msg, err := marshalJsonRepl(message)
+	if err != nil {
+		panic(err)
+	}
+	return msg
+}
+
+func createCreateRoomMessage(name string) []byte {
+	message := &prot.Message{
+		Typ: "command",
+		Body: prot.CommandMessage{
 			Action: "CreateRoom",
 			Target: name,
 		},
@@ -133,9 +156,9 @@ func createCreateRoomMessage(name string) []byte {
 }
 
 func createChatMessage(input, room string) []byte {
-	message := &server.Message{
+	message := &prot.Message{
 		Typ: "chat",
-		Body: server.ChatMessage{
+		Body: prot.ChatMessage{
 			Message: input,
 			Target:  room,
 		},
@@ -147,7 +170,7 @@ func createChatMessage(input, room string) []byte {
 	return msg
 }
 
-func marshalJsonRepl(m *server.Message) ([]byte, error) {
+func marshalJsonRepl(m *prot.Message) ([]byte, error) {
 	var temp struct {
 		Type string          `json:"type"`
 		Body json.RawMessage `json:"body"`
