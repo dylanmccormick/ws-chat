@@ -45,7 +45,7 @@ func Execute() {
 			case "/quit":
 				break
 			case "/create":
-				msg := createCreateRoomMessage(tokens[1])
+				msg := CreateCreateRoomMessage(tokens[1])
 				err := c.WriteMessage(websocket.TextMessage, msg)
 				if err != nil {
 					fmt.Printf("We got an error writing: %s", err)
@@ -53,7 +53,7 @@ func Execute() {
 				}
 				continue
 			case "/join":
-				msg := createJoinRoomMessage(tokens[1])
+				msg := CreateJoinRoomMessage(tokens[1])
 				err := c.WriteMessage(websocket.TextMessage, msg)
 				if err != nil {
 					fmt.Printf("We got an error writing: %s", err)
@@ -64,7 +64,7 @@ func Execute() {
 				currentRoom = tokens[1]
 				continue
 			case "/list":
-				msg := createListRoomMessage()
+				msg := CreateListRoomMessage()
 				err := c.WriteMessage(websocket.TextMessage, msg)
 				if err != nil {
 					fmt.Printf("We got an error writing: %s", err)
@@ -80,7 +80,7 @@ func Execute() {
 			continue
 		}
 
-		chat := createChatMessage(input, currentRoom)
+		chat := CreateChatMessage(input, currentRoom)
 		err := c.WriteMessage(websocket.TextMessage, chat)
 		if err != nil {
 			fmt.Printf("We got an error writing: %s", err)
@@ -111,7 +111,7 @@ func CreateConnection() *websocket.Conn {
 	return c
 }
 
-func createJoinRoomMessage(name string) []byte {
+func CreateJoinRoomMessage(name string) []byte {
 	message := &prot.Message{
 		Typ: "command",
 		Body: prot.CommandMessage{
@@ -119,28 +119,28 @@ func createJoinRoomMessage(name string) []byte {
 			Target: name,
 		},
 	}
-	msg, err := marshalJsonRepl(message)
+	msg, err := MarshalJson(message)
 	if err != nil {
 		panic(err)
 	}
 	return msg
 }
 
-func createListRoomMessage() []byte {
+func CreateListRoomMessage() []byte {
 	message := &prot.Message{
 		Typ: "command",
 		Body: prot.CommandMessage{
 			Action: "ListMyRooms",
 		},
 	}
-	msg, err := marshalJsonRepl(message)
+	msg, err := MarshalJson(message)
 	if err != nil {
 		panic(err)
 	}
 	return msg
 }
 
-func createCreateRoomMessage(name string) []byte {
+func CreateCreateRoomMessage(name string) []byte {
 	message := &prot.Message{
 		Typ: "command",
 		Body: prot.CommandMessage{
@@ -148,14 +148,14 @@ func createCreateRoomMessage(name string) []byte {
 			Target: name,
 		},
 	}
-	msg, err := marshalJsonRepl(message)
+	msg, err := MarshalJson(message)
 	if err != nil {
 		panic(err)
 	}
 	return msg
 }
 
-func createChatMessage(input, room string) []byte {
+func CreateChatMessage(input, room string) []byte {
 	message := &prot.Message{
 		Typ: "chat",
 		Body: prot.ChatMessage{
@@ -163,14 +163,14 @@ func createChatMessage(input, room string) []byte {
 			Target:  room,
 		},
 	}
-	msg, err := marshalJsonRepl(message)
+	msg, err := MarshalJson(message)
 	if err != nil {
 		panic(err)
 	}
 	return msg
 }
 
-func marshalJsonRepl(m *prot.Message) ([]byte, error) {
+func MarshalJson(m *prot.Message) ([]byte, error) {
 	var temp struct {
 		Type string          `json:"type"`
 		Body json.RawMessage `json:"body"`

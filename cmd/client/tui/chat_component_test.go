@@ -1,8 +1,9 @@
 package tui_test
 
-import(
-	"github.com/dylanmccormick/ws-chat/cmd/client/tui"
+import (
 	"testing"
+
+	"github.com/dylanmccormick/ws-chat/cmd/client/tui"
 )
 
 func TestNewChatComponent(t *testing.T) {
@@ -22,4 +23,3 @@ func TestNewChatComponent(t *testing.T) {
 		})
 	}
 }
-

@@ -49,38 +49,3 @@ func CreateErrorMessage(ctx context.Context, msg string) InternalMessage {
 	}
 }
 
-// func (m *Message) UnmarshalJSON(data []byte) error {
-// 	var temp struct {
-// 		Type string          `json:"type"`
-// 		Body json.RawMessage `json:"body"`
-// 	}
-//
-// 	if err := json.Unmarshal(data, &temp); err != nil {
-// 		return err
-// 	}
-//
-// 	m.Typ = temp.Type
-//
-// 	switch temp.Type {
-// 	case "chat":
-// 		var chatBody prot.ChatMessage
-// 		if err := json.Unmarshal(temp.Body, &chatBody); err != nil {
-// 			return err
-// 		}
-// 		m.Body = chatBody
-// 	case "command":
-// 		var commandBody prot.CommandMessage
-// 		if err := json.Unmarshal(temp.Body, &commandBody); err != nil {
-// 			return err
-// 		}
-// 		m.Body = commandBody
-// 	case "error":
-// 		var errorBody prot.ErrorMessage
-// 		if err := json.Unmarshal(temp.Body, &errorBody); err != nil {
-// 			return err
-// 		}
-// 		m.Body = errorBody
-// 	}
-//
-// 	return nil
-// }

@@ -77,6 +77,8 @@ func (h *Hub) handleChat(ctx context.Context, msg InternalMessage, body prot.Cha
 		slog.Error("Unable to resolve target for chat message", "message", msg, "body", body)
 		return
 	}
+	body.UserName = msg.User.username
+	msg.Message.Body = body
 	data, err := h.translator.MessageToBytes(ctx, msg)
 	if err != nil {
 		slog.Error("Unable to convert message to bytes", "message", msg)

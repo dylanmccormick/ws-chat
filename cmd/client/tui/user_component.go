@@ -19,7 +19,7 @@ func (cc UserComponent) View() string {
 	return str
 }
 
-func (cc UserComponent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (cc UserComponent) Update(msg tea.Msg) (UserComponent, tea.Cmd) {
 	return cc, nil
 }
 

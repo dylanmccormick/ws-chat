@@ -1,52 +1,71 @@
 package tui
 
 import (
-	"fmt"
-
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	prot "github.com/dylanmccormick/ws-chat/internal/protocol"
 )
 
-type ChatComponent struct {
-	focused  bool
-	messages []prot.ChatMessage
-
-	input textinput.Model
+type SendChatMessage struct {
+	Message string
 }
 
-func (cc ChatComponent) View() string {
+type ChatComponent struct {
+	focused bool
+	input   textinput.Model
+}
+
+func (cc *ChatComponent) ViewRoom(room *Room) string {
+	return cc.ViewMessages(room.RenderedMessages)
+}
+
+func (cc *ChatComponent) ViewMessages(messages []string) string {
 	str := ""
-	for _, msg := range cc.messages {
-		str += fmt.Sprintf("%s: %s\n", msg.UserName, msg.Message)
+	for _, msg := range messages {
+		str += msg + "\n"
 	}
 	return str
 }
 
-func (cc ChatComponent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	return cc, nil
+func (cc ChatComponent) View() string {
+	str := ""
+	return str
 }
 
-func (cc ChatComponent) Init() tea.Cmd {
+func (cc *ChatComponent) Update(msg tea.Msg, room string) (ChatComponent, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			text := cc.input.Value()
+			cc.input.SetValue("")
+			return *cc, func() tea.Msg {
+				return SendChatMessage{Message: text}
+			}
+		}
+	}
+	var cmd tea.Cmd
+	cc.input, cmd = cc.input.Update(msg)
+	return *cc, cmd
+}
+
+func (cc *ChatComponent) Init() tea.Cmd {
 	return nil
 }
 
 func NewChatComponent() *ChatComponent {
+	ti := textinput.New()
+	ti.Width = 100
+	ti.Focus()
 	return &ChatComponent{
 		focused: true,
-		messages: []prot.ChatMessage{
-			{
-				Message:  "this is test message 1",
-				UserName: "bozo",
-			},
-			{
-				Message:  "this is test message 2",
-				UserName: "bingo",
-			},
-			{
-				Message:  "this is test message 3",
-				UserName: "alfonz",
-			},
-		},
+		input:   ti,
 	}
+}
+
+func (cc *ChatComponent) Focus() {
+	cc.focused = true
+}
+
+func (cc *ChatComponent) Blur() {
+	cc.focused = false
 }
