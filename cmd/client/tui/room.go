@@ -6,6 +6,7 @@ type Room struct {
 	Name             string
 	RawMessages      []protocol.Message
 	RenderedMessages []string
+	Users            []string
 }
 
 func NewRoom(name string) *Room {

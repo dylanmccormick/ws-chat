@@ -3,10 +3,8 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"reflect"
 	"slices"
 
@@ -108,92 +106,16 @@ func (h *Hub) handleError(ctx context.Context, msg InternalMessage, body prot.Er
 func (h *Hub) handleCommand(ctx context.Context, msg InternalMessage, body prot.CommandMessage) {
 	switch body.Action {
 	case "RegisterUser":
-		slog.Info("Registering User", "user", msg.User.username)
-		// h.clients[msg.User] = true
-		go reader(msg.User, h.messages)
-		rm, err := h.roomManager.GetRoom("lobby")
-		if err != nil {
-			slog.Error("LOBBY DOES NOT EXIST")
-			os.Exit(1)
-		}
-		rm.Users = append(rm.Users, msg.User)
+		h.commandRegisterUser(ctx, msg, body)
 	case "CreateRoom":
-		slog.Info("User requested to create room", "user", msg.User.username, "room", body.Target)
-		// TODO: add a check to make sure a room  doesn't already exist
-		h.roomManager.AddRoom(body.Target)
-		rm, err := h.roomManager.GetRoom(body.Target)
-		if err != nil {
-			slog.Error("Was not able to create room", "room", body.Target)
-		}
-		rm.Users = append(rm.Users, msg.User)
+		h.commandCreateRoom(ctx, msg, body)
 	case "JoinRoom":
-		slog.Info("User requested to join room", "user", msg.User.username, "room", body.Target)
-		rm, err := h.roomManager.GetRoom(body.Target)
-		if err != nil {
-			slog.Error("Was not able to join room", "room", body.Target)
-		}
-		// TODO: add a check to make sure the user is not already in the room
-		if userInRoom(rm, msg.User) {
-			slog.Warn("User already in room", "room", rm.Name, "user", msg.User.username)
-			im := CreateErrorMessage(ctx, "This user already is in this room")
-			h.messages <- im
-			return
-		}
-
-		rm.Users = append(rm.Users, msg.User)
-		sendMsg := prot.Message{
-			Typ: "announcement",
-			Body: prot.AnnouncementMessage{
-				Message:  fmt.Sprintf("User %s has joined the room", msg.User.username),
-				Target:   body.Target,
-				UserName: msg.User.username,
-			},
-		}
-		intMsg := InternalMessage{
-			User:    msg.User,
-			Message: sendMsg,
-		}
-		h.messages <- intMsg
+		h.commandJoinRoom(ctx, msg, body)
 	case "ListMyRooms":
-		slog.Info("User requested room information", "user", msg.User.username)
-		rooms := h.roomManager.ListRooms()
-		userRooms := []string{}
-		for _, room := range rooms {
-			r, err := h.roomManager.GetRoom(room)
-			if err != nil {
-				slog.Error("Error trying to get room information", "room", body.Target, "error", err)
-			}
-			for _, user := range r.Users {
-				if user.username == msg.User.username {
-					userRooms = append(userRooms, r.Name)
-				}
-			}
-		}
-		data, err := json.Marshal(userRooms)
-		if err != nil {
-			slog.Error("Unable to create response data", "err", err)
-			return
-		}
-		sendMsg := prot.Message{
-			Typ: "command",
-			Body: prot.CommandMessage{
-				Target:   msg.User.username,
-				Type:     "commandResponse",
-				Action:   "",
-				Data:     data,
-				UserName: msg.User.username,
-			},
-		}
-		intMsg := InternalMessage{
-			User:    msg.User,
-			Message: sendMsg,
-		}
-		out, err := h.translator.MessageToBytes(ctx, intMsg)
-		if err != nil {
-			slog.Error("Unable to translate message to bytes.", "err", err)
-			return
-		}
-		msg.User.send <- []byte(out)
+		h.commandListRoomsForUser(ctx, msg, body)
+	case "ListRoomUsers":
+		h.commandListUsersInRoom(ctx, msg, body)
+		slog.Info("User requested user information", "user", msg.User.username, "room", body.Target)
 
 	default:
 		slog.Warn("Received command with unexpected action", "action", body.Action)

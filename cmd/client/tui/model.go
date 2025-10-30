@@ -2,8 +2,13 @@ package tui
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
+	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -37,6 +42,8 @@ type Component interface {
 	Blur()
 }
 
+type TickMsg time.Time
+
 func Start() {
 	conn := commands.CreateConnection()
 	rm := NewRootModel(conn)
@@ -66,6 +73,7 @@ func (rm RootModel) Init() tea.Cmd {
 	return tea.Batch(
 		ListenForMessages(rm.Conn, rm.sub),
 		ReceiveMessage(rm.sub),
+		doTick(),
 	)
 }
 
@@ -85,12 +93,20 @@ func (rm RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SendChatMessage:
 		rm.ChatsSent++
 		return rm, rm.SendChatMessage(msg)
+	case TickMsg:
+		return rm, tea.Batch(doTick(), rm.UpdateUsersAndRooms())
 	}
 
 	var cmd tea.Cmd
 	*rm.ChatComponent, cmd = rm.ChatComponent.Update(msg, rm.CurrentRoom.Name)
 
 	return rm, cmd
+}
+
+func doTick() tea.Cmd {
+	return tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
+		return TickMsg(t)
+	})
 }
 
 func (rm RootModel) View() string {
@@ -174,14 +190,28 @@ func ListenForMessages(c *websocket.Conn, sub chan protocol.Message) tea.Cmd {
 	}
 }
 
-func (rm *RootModel) SendChatMessage(msg SendChatMessage) tea.Cmd {
+func (rm *RootModel) UpdateUsersAndRooms() tea.Cmd {
 	return func() tea.Msg {
-		bytMsg := commands.CreateChatMessage(msg.Message, rm.CurrentRoom.Name)
-		err := rm.Conn.WriteMessage(websocket.TextMessage, bytMsg)
+		roomMsg := commands.CreateListRoomMessage()
+		err := rm.Conn.WriteMessage(websocket.TextMessage, roomMsg)
 		if err != nil {
 			fmt.Printf("We got an error writing: %s", err)
 			panic(err)
 		}
+
+		userMsg := commands.CreateGetUsersMessage(rm.CurrentRoom.Name)
+		err = rm.Conn.WriteMessage(websocket.TextMessage, userMsg)
+		if err != nil {
+			fmt.Printf("We got an error writing: %s", err)
+			panic(err)
+		}
+		return nil
+	}
+}
+
+func (rm *RootModel) SendChatMessage(msg SendChatMessage) tea.Cmd {
+	return func() tea.Msg {
+		rm.handleMessage(msg.Message)
 		return nil
 	}
 }
@@ -192,7 +222,7 @@ func ReceiveMessage(sub chan protocol.Message) tea.Cmd {
 	}
 }
 
-func (rm RootModel) ProcessMessage(msg protocol.Message) {
+func (rm *RootModel) ProcessMessage(msg protocol.Message) {
 	rm.MessageCount++
 	switch body := msg.Body.(type) {
 	case protocol.ChatMessage:
@@ -216,6 +246,40 @@ func (rm RootModel) ProcessMessage(msg protocol.Message) {
 		room.RawMessages = append(room.RawMessages, msg)
 		room.RenderedMessages = append(room.RenderedMessages, renderAnnouncement(body))
 		return
+
+	case protocol.CommandMessage:
+		rm.handleCommandBody(body)
+		return
+	}
+}
+
+func (rm *RootModel) handleCommandBody(body protocol.CommandMessage) {
+	switch body.Action {
+	case "ListRoomUsers":
+		room, ok := rm.roomsMap[body.Target]
+		if !ok {
+			return
+		}
+		users := &[]string{}
+		err := json.Unmarshal(body.Data, users)
+		if err != nil {
+			return
+		}
+		room.Users = *users
+		rm.UserComponent.users = *users
+	case "ListMyRooms":
+		rooms := &[]string{}
+		err := json.Unmarshal(body.Data, rooms)
+		if err != nil {
+			return
+		}
+		for _, room := range *rooms {
+			_, ok := rm.roomsMap[room]
+			if !ok {
+				rm.roomsMap[room] = NewRoom(room)
+			}
+		}
+		rm.RoomComponent.rooms = slices.Collect(maps.Keys(rm.roomsMap))
 	}
 }
 
@@ -225,4 +289,51 @@ func renderChat(msg protocol.ChatMessage) string {
 
 func renderAnnouncement(msg protocol.AnnouncementMessage) string {
 	return fmt.Sprintf("%s", msg.Message)
+}
+
+func (rm *RootModel) handleMessage(input string) {
+	if len(input) > 0 && input[0] == '/' {
+		tokens := strings.Split(input, " ")
+		switch tokens[0] {
+		case "/quit":
+			break
+		case "/create":
+			msg := commands.CreateCreateRoomMessage(tokens[1])
+			err := rm.Conn.WriteMessage(websocket.TextMessage, msg)
+			if err != nil {
+				fmt.Printf("We got an error writing: %s", err)
+				panic(err)
+			}
+			return
+		case "/join":
+			msg := commands.CreateJoinRoomMessage(tokens[1])
+			err := rm.Conn.WriteMessage(websocket.TextMessage, msg)
+			if err != nil {
+				fmt.Printf("We got an error writing: %s", err)
+				panic(err)
+			}
+			return
+		// TODO: Implement Switch
+		case "/switch":
+			if r, ok := rm.roomsMap[tokens[1]]; ok {
+				rm.CurrentRoom = r
+			} else {
+				panic(fmt.Errorf("SOMETHING IS WRONG"))
+			}
+			return
+		case "/list":
+			msg := commands.CreateListRoomMessage()
+			err := rm.Conn.WriteMessage(websocket.TextMessage, msg)
+			if err != nil {
+				fmt.Printf("We got an error writing: %s", err)
+				panic(err)
+			}
+		}
+	}
+	chat := commands.CreateChatMessage(input, rm.CurrentRoom.Name)
+	err := rm.Conn.WriteMessage(websocket.TextMessage, chat)
+	if err != nil {
+		fmt.Printf("We got an error writing: %s", err)
+		panic(err)
+	}
 }

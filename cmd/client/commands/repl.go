@@ -126,6 +126,21 @@ func CreateJoinRoomMessage(name string) []byte {
 	return msg
 }
 
+func CreateGetUsersMessage(room string) []byte {
+	message := &prot.Message{
+		Typ: "command",
+		Body: prot.CommandMessage{
+			Action: "ListRoomUsers",
+			Target: room,
+		},
+	}
+	msg, err := MarshalJson(message)
+	if err != nil {
+		panic(err)
+	}
+	return msg
+}
+
 func CreateListRoomMessage() []byte {
 	message := &prot.Message{
 		Typ: "command",

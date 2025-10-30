@@ -29,7 +29,7 @@ func (cc RoomComponent) Init() tea.Cmd {
 
 func NewRoomComponent() *RoomComponent {
 	return &RoomComponent{
-		focused: true,
+		focused: false,
 		rooms:   []string{"room1", "room2", "lobby"},
 	}
 }
