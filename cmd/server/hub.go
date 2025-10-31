@@ -116,6 +116,8 @@ func (h *Hub) handleCommand(ctx context.Context, msg InternalMessage, body prot.
 	case "ListRoomUsers":
 		h.commandListUsersInRoom(ctx, msg, body)
 		slog.Info("User requested user information", "user", msg.User.username, "room", body.Target)
+	case "ChangeUsername":
+		h.commandChangeUsername(ctx, msg, body)
 
 	default:
 		slog.Warn("Received command with unexpected action", "action", body.Action)

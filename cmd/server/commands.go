@@ -13,6 +13,7 @@ import (
 func (h *Hub) commandRegisterUser(ctx context.Context, msg InternalMessage, body prot.CommandMessage) {
 	slog.Info("Registering User", "user", msg.User.username)
 	// h.clients[msg.User] = true
+	h.clients[msg.User.username] = msg.User
 	go reader(msg.User, h.messages)
 	rm, err := h.roomManager.GetRoom("lobby")
 	if err != nil {
@@ -31,6 +32,30 @@ func (h *Hub) commandCreateRoom(ctx context.Context, msg InternalMessage, body p
 		slog.Error("Was not able to create room", "room", body.Target)
 	}
 	rm.Users = append(rm.Users, msg.User)
+}
+
+func (h *Hub) commandChangeUsername(ctx context.Context, msg InternalMessage, body prot.CommandMessage) {
+	slog.Info("User requested to change username", "user", msg.User.username, "new_username", body.Target)
+
+	if _, ok := h.clients[body.Target]; ok {
+		im := CreateErrorMessage(ctx, "This username is taken")
+		out, err := h.translator.MessageToBytes(ctx, im)
+		if err != nil {
+			slog.Error("Unable to translate message to bytes.", "err", err)
+			return
+		}
+		msg.User.send <- []byte(out)
+		return
+	}
+	slog.Info("Getting user from client map")
+	usr := h.clients[msg.User.username]
+	slog.Info("retrieved user", "user_is_nil", usr == nil, "username_lookup", msg.User.username)
+	slog.Info("Adding new username to client map")
+	h.clients[body.Target] = usr
+	slog.Info("Updating username in user object")
+	usr.username = body.Target
+	slog.Info("Deleting user from client map")
+	delete(h.clients, msg.User.username)
 }
 
 func (h *Hub) commandJoinRoom(ctx context.Context, msg InternalMessage, body prot.CommandMessage) {

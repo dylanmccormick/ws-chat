@@ -35,6 +35,10 @@ type RootModel struct {
 	ChatsSent    int
 }
 
+type SwitchedRoomsMessage struct {
+	Room string
+}
+
 type Component interface {
 	Update(msg tea.Msg) (Component, tea.Cmd)
 	View() string
@@ -88,11 +92,15 @@ func (rm RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return rm, tea.Quit
 		}
 	case protocol.Message:
-		rm.ProcessMessage(msg)
-		return rm, ReceiveMessage(rm.sub)
+		var cmd tea.Cmd
+		r, cmd := rm.ProcessMessage(msg)
+		return r, tea.Batch(cmd, ReceiveMessage(rm.sub))
 	case SendChatMessage:
 		rm.ChatsSent++
 		return rm, rm.SendChatMessage(msg)
+	case SwitchedRoomsMessage:
+		rm.CurrentRoom = rm.roomsMap[msg.Room]
+		return rm, nil
 	case TickMsg:
 		return rm, tea.Batch(doTick(), rm.UpdateUsersAndRooms())
 	}
@@ -122,7 +130,7 @@ func (rm RootModel) View() string {
 }
 
 func (rm RootModel) RenderFooter(width, height int) string {
-	content := fmt.Sprintf("Current room: %s, messages: %d, chats_sent: %d", rm.CurrentRoom.Name, rm.MessageCount, rm.ChatsSent)
+	content := fmt.Sprintf("Current room: %s, roomsList: %#v, chats_sent: %d", rm.CurrentRoom.Name, rm.roomsMap, rm.ChatsSent)
 	headerStyle := lipgloss.NewStyle().
 		Width(width - 2).
 		Height(height - 2).
@@ -211,8 +219,7 @@ func (rm *RootModel) UpdateUsersAndRooms() tea.Cmd {
 
 func (rm *RootModel) SendChatMessage(msg SendChatMessage) tea.Cmd {
 	return func() tea.Msg {
-		rm.handleMessage(msg.Message)
-		return nil
+		return rm.handleMessage(msg.Message)
 	}
 }
 
@@ -222,7 +229,7 @@ func ReceiveMessage(sub chan protocol.Message) tea.Cmd {
 	}
 }
 
-func (rm *RootModel) ProcessMessage(msg protocol.Message) {
+func (rm *RootModel) ProcessMessage(msg protocol.Message) (tea.Model, tea.Cmd) {
 	rm.MessageCount++
 	switch body := msg.Body.(type) {
 	case protocol.ChatMessage:
@@ -230,40 +237,41 @@ func (rm *RootModel) ProcessMessage(msg protocol.Message) {
 		room, ok := rm.roomsMap[roomName]
 		if !ok {
 			// This might need to be an error but I'm not sure how to show those yet
-			return
+			return rm, nil
 		}
 		room.RawMessages = append(room.RawMessages, msg)
 		room.RenderedMessages = append(room.RenderedMessages, renderChat(body))
-		return
+		return rm, nil
 
 	case protocol.AnnouncementMessage:
 		roomName := body.Target
 		room, ok := rm.roomsMap[roomName]
 		if !ok {
 			// This might need to be an error but I'm not sure how to show those yet
-			return
+			return rm, nil
 		}
 		room.RawMessages = append(room.RawMessages, msg)
 		room.RenderedMessages = append(room.RenderedMessages, renderAnnouncement(body))
-		return
+		return rm, nil
 
 	case protocol.CommandMessage:
-		rm.handleCommandBody(body)
-		return
+		return rm.handleCommandBody(body)
+	default:
+		return rm, nil
 	}
 }
 
-func (rm *RootModel) handleCommandBody(body protocol.CommandMessage) {
+func (rm *RootModel) handleCommandBody(body protocol.CommandMessage) (tea.Model, tea.Cmd) {
 	switch body.Action {
 	case "ListRoomUsers":
 		room, ok := rm.roomsMap[body.Target]
 		if !ok {
-			return
+			return rm, nil
 		}
 		users := &[]string{}
 		err := json.Unmarshal(body.Data, users)
 		if err != nil {
-			return
+			return rm, nil
 		}
 		room.Users = *users
 		rm.UserComponent.users = *users
@@ -271,7 +279,7 @@ func (rm *RootModel) handleCommandBody(body protocol.CommandMessage) {
 		rooms := &[]string{}
 		err := json.Unmarshal(body.Data, rooms)
 		if err != nil {
-			return
+			return rm, nil
 		}
 		for _, room := range *rooms {
 			_, ok := rm.roomsMap[room]
@@ -280,7 +288,9 @@ func (rm *RootModel) handleCommandBody(body protocol.CommandMessage) {
 			}
 		}
 		rm.RoomComponent.rooms = slices.Collect(maps.Keys(rm.roomsMap))
+		return rm, nil
 	}
+	return rm, nil
 }
 
 func renderChat(msg protocol.ChatMessage) string {
@@ -291,7 +301,7 @@ func renderAnnouncement(msg protocol.AnnouncementMessage) string {
 	return fmt.Sprintf("%s", msg.Message)
 }
 
-func (rm *RootModel) handleMessage(input string) {
+func (rm *RootModel) handleMessage(input string) tea.Msg {
 	if len(input) > 0 && input[0] == '/' {
 		tokens := strings.Split(input, " ")
 		switch tokens[0] {
@@ -304,7 +314,7 @@ func (rm *RootModel) handleMessage(input string) {
 				fmt.Printf("We got an error writing: %s", err)
 				panic(err)
 			}
-			return
+			return nil
 		case "/join":
 			msg := commands.CreateJoinRoomMessage(tokens[1])
 			err := rm.Conn.WriteMessage(websocket.TextMessage, msg)
@@ -312,7 +322,7 @@ func (rm *RootModel) handleMessage(input string) {
 				fmt.Printf("We got an error writing: %s", err)
 				panic(err)
 			}
-			return
+			return nil
 		// TODO: Implement Switch
 		case "/switch":
 			if r, ok := rm.roomsMap[tokens[1]]; ok {
@@ -320,7 +330,8 @@ func (rm *RootModel) handleMessage(input string) {
 			} else {
 				panic(fmt.Errorf("SOMETHING IS WRONG"))
 			}
-			return
+			return SwitchedRoomsMessage{tokens[1]}
+
 		case "/list":
 			msg := commands.CreateListRoomMessage()
 			err := rm.Conn.WriteMessage(websocket.TextMessage, msg)
@@ -328,6 +339,15 @@ func (rm *RootModel) handleMessage(input string) {
 				fmt.Printf("We got an error writing: %s", err)
 				panic(err)
 			}
+			return nil
+		case "/changeUsername":
+			msg := commands.CreateChangeUsernameMessage(tokens[1])
+			err := rm.Conn.WriteMessage(websocket.TextMessage, msg)
+			if err != nil {
+				fmt.Printf("We got an error writing: %s", err)
+				panic(err)
+			}
+			return nil
 		}
 	}
 	chat := commands.CreateChatMessage(input, rm.CurrentRoom.Name)
@@ -336,4 +356,5 @@ func (rm *RootModel) handleMessage(input string) {
 		fmt.Printf("We got an error writing: %s", err)
 		panic(err)
 	}
+	return nil
 }

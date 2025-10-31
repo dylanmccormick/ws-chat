@@ -14,5 +14,6 @@ func NewRoom(name string) *Room {
 		Name:             name,
 		RawMessages:      []protocol.Message{},
 		RenderedMessages: []string{},
+		Users:            []string{},
 	}
 }

@@ -141,6 +141,21 @@ func CreateGetUsersMessage(room string) []byte {
 	return msg
 }
 
+func CreateChangeUsernameMessage(username string) []byte {
+	message := &prot.Message{
+		Typ: "command",
+		Body: prot.CommandMessage{
+			Action: "ChangeUsername",
+			Target: username,
+		},
+	}
+	msg, err := MarshalJson(message)
+	if err != nil {
+		panic(err)
+	}
+	return msg
+}
+
 func CreateListRoomMessage() []byte {
 	message := &prot.Message{
 		Typ: "command",
